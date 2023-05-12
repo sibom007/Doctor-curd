@@ -40,14 +40,15 @@ async function run() {
     const bookingData = client.db("carDoctor").collection("bookings");
 
     app.get('/services', async (req, res) => {
-
       const cursor = servicescollaction.find();
       const result = await cursor.toArray();
       res.send(result);
     })
+
+
+
     app.post('/bookings', async (req, res) => {
       const booking = req.body
-      console.log(booking);
       const result = await bookingData.insertOne(booking);
       res.send(result);
     })
@@ -60,6 +61,42 @@ async function run() {
       res.send(result);
     })
 
+
+    app.get('/bookings', async (req, res) => {
+      let query = {};
+      if (req.query?.email) {
+        query = { email: req.query.email }
+      }
+
+      const result = await bookingData.find().toArray()
+      res.send(result);
+    })
+
+    app.delete('/Bookings/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await bookingData.deleteOne(query)
+      res.send(result);
+    })
+
+
+    app.patch('/bookings/:id', async (req, res) => {
+      const id = req.params.id;
+      const filter = {_id: new ObjectId(id) }
+      const Updatebooking = req.body
+      console.log(Updatebooking);
+
+
+      const updateDoc = {
+        $set: {
+          status: Updatebooking.status
+        },
+      };
+  
+      
+      const result = await bookingData.updateOne(filter,updateDoc);
+      res.send(result);
+    })
 
 
 
