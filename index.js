@@ -1,6 +1,12 @@
+// importent links
+// require('crypto').randomBytes(64).toString('hex')
+// https://github.com/auth0/node-jsonwebtoken
+
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const decode = require('jsonwebtoken/decode');
 const app = express();
 require('dotenv').config()
 const port = process.env.PORT || 5000
@@ -32,6 +38,21 @@ const client = new MongoClient(uri, {
   }
 });
 
+const verifyJWT = (req, res, next) => {
+  const authorization = req.headers.authorization;
+  if (!authorization) {
+    return res.status(401).send({ error: true, message: '1unauthorizasd' })
+  }
+  const token = authorization.split(' ')[1]
+  jwt.verify(token, process.env.ASSESS_TOKEN_SECRET, (error, decode) => {
+    if (error) {
+      return res.status(403).send({ error: true, message: '2unauthorizasd' })
+    }
+    req.decode = decode;
+    next();
+  })
+}
+
 async function run() {
   try {
 
@@ -39,6 +60,18 @@ async function run() {
     const servicescollaction = client.db("carDoctor").collection("services");
     const bookingData = client.db("carDoctor").collection("bookings");
 
+    //jwt token servise
+    app.post('/jwt', (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ASSESS_TOKEN_SECRET,
+        { expiresIn: "1h" })
+      res.send({ token })
+    })
+
+
+
+
+    //clint services
     app.get('/services', async (req, res) => {
       const cursor = servicescollaction.find();
       const result = await cursor.toArray();
@@ -62,12 +95,16 @@ async function run() {
     })
 
 
-    app.get('/bookings', async (req, res) => {
+    app.get('/bookings', verifyJWT, async (req, res) => {
+      const decode = req.decode;
+      console.log(decode);
       let query = {};
       if (req.query?.email) {
         query = { email: req.query.email }
       }
-
+      if (decode.email  !== req.query.email) {
+        return res.status(403).send({ error: true, message: 'unauthorizasd' })
+      }
       const result = await bookingData.find().toArray()
       res.send(result);
     })
@@ -82,7 +119,7 @@ async function run() {
 
     app.patch('/bookings/:id', async (req, res) => {
       const id = req.params.id;
-      const filter = {_id: new ObjectId(id) }
+      const filter = { _id: new ObjectId(id) }
       const Updatebooking = req.body
       console.log(Updatebooking);
 
@@ -92,9 +129,9 @@ async function run() {
           status: Updatebooking.status
         },
       };
-  
-      
-      const result = await bookingData.updateOne(filter,updateDoc);
+
+
+      const result = await bookingData.updateOne(filter, updateDoc);
       res.send(result);
     })
 
