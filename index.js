@@ -73,7 +73,21 @@ async function run() {
 
     //clint services
     app.get('/services', async (req, res) => {
-      const cursor = servicescollaction.find();
+      const sort = req.query.sort;
+      const search = req.query.search;
+      // console.log(search);
+      // const query = {}
+      const query = { title: { $regex: search, $options: 'i' } }
+
+      const options = {
+        // sort matched documents in descending order by rating
+        sort: {
+          "price": sort === "asc" ? 1 : -1
+
+        },
+
+      };
+      const cursor = servicescollaction.find(query, options);
       const result = await cursor.toArray();
       res.send(result);
     })
@@ -102,7 +116,7 @@ async function run() {
       if (req.query?.email) {
         query = { email: req.query.email }
       }
-      if (decode.email  !== req.query.email) {
+      if (decode.email !== req.query.email) {
         return res.status(403).send({ error: true, message: 'unauthorizasd' })
       }
       const result = await bookingData.find().toArray()
